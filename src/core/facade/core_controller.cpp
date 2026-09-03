@@ -39,7 +39,6 @@
 #include "app_updater.h"
 #include "settings_store.h"
 #include "storage_library_model.h"
-#include "torrent_session.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -181,6 +180,7 @@ CoreController::CoreController(QObject* parent)
             m_libraryStore.setGames(games);
     }
     m_pluginHost = new PluginHost(this);
+    m_pluginHost->registerBundledPlugin(&m_bundledSteamPlugin);
     m_pluginHost->scan();
     logDiagnostic(QStringLiteral("Core CatalogEntry=%1 bytes").arg(sizeof(CatalogEntry)));
     m_installAnalyzer = new InstallAnalyzer(m_pluginHost);

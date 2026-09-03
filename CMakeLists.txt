@@ -12,11 +12,6 @@ endif()
 message(STATUS "Arachnel version: ${ARACHNEL_VERSION}")
 
 option(ARACHNEL_FAST_BUILD "Faster dev builds: skip QML cachegen" ON)
-if(WIN32)
-    option(ARACHNEL_LIBTORRENT_SHARED "Build libtorrent as DLL (much faster incremental links)" ON)
-else()
-    option(ARACHNEL_LIBTORRENT_SHARED "Build libtorrent as shared library" OFF)
-endif()
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
@@ -40,7 +35,6 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.8)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ArachnelLibtorrent.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ArachnelTranslations.cmake)
 
 include(FetchContent)
@@ -172,8 +166,6 @@ target_link_libraries(arachnel_app
 )
 
 qt_import_qml_plugins(arachnel_app)
-
-arachnel_setup_libtorrent(arachnel_app)
 
 if(WIN32)
     target_link_libraries(arachnel_app PRIVATE ole32 shell32 dbghelp)

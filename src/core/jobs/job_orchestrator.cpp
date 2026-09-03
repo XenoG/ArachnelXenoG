@@ -3,7 +3,6 @@
 #include "http_download_session.h"
 #include "i18n.h"
 #include "job_status.h"
-#include "torrent_session.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -22,19 +21,14 @@ QString isoNow()
 } // namespace
 
 JobOrchestrator::JobOrchestrator(SettingsStore* settings, JobStore* jobStore,
-                                 TorrentSession* torrent, HttpDownloadSession* http, JobModel* jobs,
+                                 HttpDownloadSession* http, JobModel* jobs,
                                  QObject* parent)
     : QObject(parent)
     , m_settings(settings)
     , m_jobStore(jobStore)
-    , m_torrent(torrent)
     , m_http(http)
     , m_jobs(jobs)
 {
-    connect(m_torrent, &TorrentSession::torrentProgress, this, &JobOrchestrator::onTorrentProgress);
-    connect(m_torrent, &TorrentSession::torrentFinished, this, &JobOrchestrator::onTorrentFinished);
-    connect(m_torrent, &TorrentSession::torrentFailed, this, &JobOrchestrator::onTorrentFailed);
-
     connect(m_http, &HttpDownloadSession::httpProgress, this, &JobOrchestrator::onHttpProgress);
     connect(m_http, &HttpDownloadSession::httpFinished, this, &JobOrchestrator::onHttpFinished);
     connect(m_http, &HttpDownloadSession::httpFailed, this, &JobOrchestrator::onHttpFailed);
@@ -67,13 +61,9 @@ void JobOrchestrator::restoreJobs()
             continue;
         }
         if (job.pluginDownload) {
-            // Old bug routed plugin jobs through startTorrent ("Failed to start torrent").
-            const bool falseTorrentFail = job.status == QStringLiteral("failed")
-                && job.detail.contains(QStringLiteral("Failed to start torrent"),
-                                       Qt::CaseInsensitive);
-            if (isJobTerminal(job.status) && !falseTorrentFail)
+            if (isJobTerminal(job.status))
                 continue;
-            // Keep plugin jobs out of torrent/HTTP restore; Core resumes them after plugins load.
+            // Keep plugin jobs out of HTTP restore; Core resumes them after plugins load.
             job.status = QStringLiteral("starting");
             job.detail = QStringLiteral("Resuming…");
             job.completedAt.clear();
@@ -93,13 +83,8 @@ void JobOrchestrator::restoreJobs()
     for (const auto& job : jobs) {
         if (isJobTerminal(job.status) || job.pluginDownload)
             continue;
-        const bool wasPaused = isJobPaused(job.status);
         if (job.httpDownload)
             startHttp(job);
-        else
-            startTorrent(job);
-        if (!job.httpDownload && wasPaused)
-            m_torrent->setPaused(job.id, true);
     }
 
     pruneFinishedJobs();
@@ -115,15 +100,6 @@ void JobOrchestrator::flushPersistence()
     for (int i = 0; i < m_jobs->rowCount(); ++i)
         jobs.append(jobFromModelRow(i));
     m_jobStore->setJobs(jobs);
-}
-
-QString JobOrchestrator::pickMagnet(const QStringList& uris) const
-{
-    for (const QString& uri : uris) {
-        if (uri.startsWith(QStringLiteral("magnet:"), Qt::CaseInsensitive))
-            return uri;
-    }
-    return uris.value(0);
 }
 
 QString JobOrchestrator::findActiveJobId(const QString& entryId,
@@ -188,8 +164,7 @@ QString JobOrchestrator::createJob(const QString& title, JobKind kind, const QSt
     job.kind = kind;
     job.status = QStringLiteral("starting");
     job.progress = 0;
-    job.detail = httpDownload ? QStringLiteral("Downloading…")
-                              : QStringLiteral("0% · Fetching metadata…");
+    job.detail = QStringLiteral("Downloading…");
     job.entryId = entryId;
     job.sourceId = sourceId;
     job.magnetUri = downloadUri;
@@ -206,23 +181,7 @@ QString JobOrchestrator::createJob(const QString& title, JobKind kind, const QSt
     m_jobStore->upsertJob(job);
     if (httpDownload)
         startHttp(job);
-    else
-        startTorrent(job);
     return jobId;
-}
-
-void JobOrchestrator::startTorrent(const JobEntry& job)
-{
-    if (!m_torrent->addJob(job.id, job.magnetUri, job.savePath)) {
-        JobEntry failed = job;
-        failed.status = QStringLiteral("failed");
-        failed.detail = QStringLiteral("Failed to start torrent");
-        failed.completedAt = isoNow();
-        updateJobInModel(failed);
-        persistJob(failed);
-        emit downloadFailed(job.id, failed.detail);
-        m_jobKinds.remove(job.id);
-    }
 }
 
 void JobOrchestrator::startHttp(const JobEntry& job)
@@ -291,8 +250,10 @@ void JobOrchestrator::updateJobInModel(const JobEntry& job)
 QString JobOrchestrator::startCatalogDownload(const CatalogEntry& entry, JobKind kind,
                                               const QString& libraryId)
 {
-    const QString magnet = pickMagnet(entry.magnetUris);
-    if (magnet.isEmpty())
+    // With torrent removed, catalog downloads are only for HTTP direct links.
+    // Plugin-owned downloads go through startPluginOwnedDownload instead.
+    const QString url = entry.magnetUris.value(0);
+    if (url.isEmpty())
         return {};
 
     const QString existing = findActiveJobId(entry.id, {});
@@ -307,8 +268,8 @@ QString JobOrchestrator::startCatalogDownload(const CatalogEntry& entry, JobKind
                               : QStringLiteral("Downloading %1").arg(entry.title);
 
     const QString libId = libraryId.isEmpty() ? m_settings->defaultLibraryId() : libraryId;
-    return createJob(title, kind, entry.id, entry.sourceId, magnet, saveSubdir, entry.coverUrl,
-                     libId);
+    return createJob(title, kind, entry.id, entry.sourceId, url, saveSubdir, entry.coverUrl,
+                     libId, {}, true);
 }
 
 QString JobOrchestrator::startPluginOwnedDownload(const CatalogEntry& entry, JobKind kind,

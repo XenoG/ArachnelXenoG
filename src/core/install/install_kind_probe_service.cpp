@@ -1,6 +1,5 @@
 #include "install_kind_probe_service.h"
 #include "install_analyzer.h"
-#include "torrent_metadata_fetcher.h"
 
 #include <QDir>
 #include <QFile>
@@ -22,6 +21,10 @@ QString cacheFilePath()
     QDir().mkpath(dir);
     return dir + QStringLiteral("/install-kind-cache.json");
 }
+
+// Torrent support removed — magnet parsing stubs.
+QString magnetInfoHashKey(const QString&) { return {}; }
+std::optional<QStringList> fetchMagnetFileNames(const QString&) { return std::nullopt; }
 
 QString pickMagnet(const QStringList& uris)
 {

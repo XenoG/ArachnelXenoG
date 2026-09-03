@@ -352,6 +352,8 @@ void CoreController::rescanPlugins()
     if (!m_pluginHost)
         return;
     m_pluginHost->scan();
+    // Re-register bundled plugin if no external override was found during scan
+    m_pluginHost->registerBundledPlugin(&m_bundledSteamPlugin);
 }
 
 } // namespace arachnel::core

@@ -41,11 +41,7 @@ set(ARACHNEL_APP_SOURCES
     src/core/catalog/game_metadata_service.cpp
     src/core/catalog/game_metadata_service_network.cpp
     src/core/catalog/cover_image_cache.cpp
-    src/core/torrent/torrent_session.cpp
-    src/core/torrent/torrent_session_poll.cpp
-    src/core/torrent/torrent_settings.cpp
     src/core/jobs/http_download_session.cpp
-    src/core/torrent/torrent_metadata_fetcher.cpp
     src/core/install/install_analysis.cpp
     src/core/install/install_heuristics.cpp
     src/core/install/online_fix_overlay.cpp
@@ -94,6 +90,7 @@ set(ARACHNEL_APP_SOURCES
     src/core/library/library_facade_sync.cpp
     src/core/library/library_facade_ops.cpp
     src/core/plugins/plugin_facade.cpp
+    src/core/plugins/bundled/steam_source_plugin.cpp
     src/core/runtime/proton_facade.cpp
     src/core/facade/core_wiring_services.cpp
     src/core/i18n/translation_service.cpp
@@ -110,10 +107,10 @@ set(ARACHNEL_CORE_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/jobs
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/install
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/plugins
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/plugins/bundled
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/launch
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/platform
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/core/torrent
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/settings
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/i18n
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core/util

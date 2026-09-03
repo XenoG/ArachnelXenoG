@@ -265,7 +265,6 @@ or QT_INSTALL_DIR to your Qt root (the folder that contains version dirs / Tools
         "-DCMAKE_BUILD_TYPE=$BUILD_TYPE",
         "-DCMAKE_PREFIX_PATH=$($qt.Prefix)",
         "-DARACHNEL_FAST_BUILD=$(if ($env:ARACHNEL_FAST_BUILD -eq '0') { 'OFF' } else { 'ON' })",
-        "-DARACHNEL_LIBTORRENT_SHARED=$(if ($env:ARACHNEL_LIBTORRENT_SHARED -eq '0') { 'OFF' } else { 'ON' })",
         "-DARACHNEL_VERSION=$(if ($env:ARACHNEL_VERSION -and $env:ARACHNEL_VERSION -ne 'dev') { $env:ARACHNEL_VERSION } else { 'dev' })"
     )
 
@@ -577,14 +576,6 @@ function New-ReleasePackage {
         $configureArgs = $plan.Configure
         & $plan.Cmake @configureArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-        if (Test-LibtorrentNeedsSharedMigration $BUILD_DIR) {
-            $ltBuild = Join-Path $BUILD_DIR "_deps\libtorrent-build"
-            Write-Host "Cleaning stale static libtorrent build (one-time shared DLL migration) ..." -ForegroundColor Yellow
-            Remove-Item -LiteralPath $ltBuild -Recurse -Force -ErrorAction SilentlyContinue
-            & $plan.Cmake @configureArgs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        }
     }
 
     Write-Host "Build ..."
@@ -637,15 +628,6 @@ Imports=qml
     }
 
     Resolve-WindowsTlsRuntime -DestDir $DIST_DIR -QtPrefix $plan.Qt.Prefix
-
-    $libtorrentDll = Resolve-LibtorrentSharedDll $BUILD_DIR
-    if ($libtorrentDll) {
-        $dllName = Split-Path -Leaf $libtorrentDll
-        Copy-Item -LiteralPath $libtorrentDll -Destination (Join-Path $DIST_DIR $dllName) -Force
-        Write-Host "Bundled libtorrent: $dllName"
-    } elseif ($env:ARACHNEL_LIBTORRENT_SHARED -ne '0') {
-        throw "libtorrent shared DLL not found (expected torrent-rasterbar.dll or libtorrent-rasterbar.dll). Rebuild with --rebuild."
-    }
 
     $qmlMaterialDll = Join-Path $BUILD_DIR "qml_material.dll"
     if (Test-Path -LiteralPath $qmlMaterialDll) {
@@ -721,61 +703,9 @@ function Resolve-WindowsTlsRuntime {
     }
 }
 
-function Resolve-LibtorrentSharedDll {
-    param([string]$BuildDir)
-
-    $searchDirs = @(
-        (Split-Path -Parent (Get-AppPath)),
-        $BuildDir,
-        (Join-Path $BuildDir "_deps\libtorrent-build"),
-        (Join-Path $BuildDir "thirdparty\libtorrent")
-    ) | Select-Object -Unique
-
-    foreach ($dir in $searchDirs) {
-        if (-not (Test-Path -LiteralPath $dir)) { continue }
-        $match = Get-ChildItem -LiteralPath $dir -Filter "*torrent-rasterbar*.dll" -File -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-        if ($match) { return $match.FullName }
-
-        $match = Get-ChildItem -Path $dir -Recurse -Filter "*torrent-rasterbar*.dll" -File -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-        if ($match) { return $match.FullName }
-    }
-
-    return $null
-}
-
-function Test-LibtorrentSharedDllPresent {
-    param([string]$BuildDir)
-
-    return [bool](Resolve-LibtorrentSharedDll $BuildDir)
-}
-
-function Test-LibtorrentNeedsSharedMigration {
-    param([string]$BuildDir)
-
-    if ($env:ARACHNEL_LIBTORRENT_SHARED -eq '0') { return $false }
-    if (Test-LibtorrentSharedDllPresent $BuildDir) { return $false }
-
-    $ltBuild = Join-Path $BuildDir "_deps\libtorrent-build"
-    if (-not (Test-Path -LiteralPath $ltBuild)) { return $false }
-
-    # Only wipe when an old static libtorrent tree is still on disk.
-    $staticLib = Get-ChildItem -Path $ltBuild -Recurse -Filter "libtorrent-rasterbar.a" -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    return [bool]$staticLib
-}
-
 function Test-NeedsCmakeConfigure {
     $cache = Join-Path $BUILD_DIR "CMakeCache.txt"
     if (-not (Test-Path -LiteralPath $cache)) { return $true }
-
-    $cacheText = Get-Content -LiteralPath $cache -Raw
-    $wantShared = if ($env:ARACHNEL_LIBTORRENT_SHARED -eq '0') { 'OFF' } else { 'ON' }
-    if ($cacheText -notmatch "ARACHNEL_LIBTORRENT_SHARED:BOOL=$wantShared") {
-        Write-Host "Reconfigure: libtorrent shared/static setting changed" -ForegroundColor Yellow
-        return $true
-    }
 
     $cacheTime = (Get-Item -LiteralPath $cache).LastWriteTimeUtc
     $inputs = @((Join-Path $ROOT "CMakeLists.txt"))
@@ -832,14 +762,6 @@ function Ensure-DevBuild {
         $configureArgs = $plan.Configure
         & $plan.Cmake @configureArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-        if (Test-LibtorrentNeedsSharedMigration $BUILD_DIR) {
-            $ltBuild = Join-Path $BUILD_DIR "_deps\libtorrent-build"
-            Write-Host "Cleaning stale static libtorrent build (one-time shared DLL migration) ..." -ForegroundColor Yellow
-            Remove-Item -LiteralPath $ltBuild -Recurse -Force -ErrorAction SilentlyContinue
-            & $plan.Cmake @configureArgs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        }
     }
 
     Write-Host "Build ..."
@@ -993,9 +915,7 @@ Env:
   CMAKE_PREFIX_PATH / QTDIR     Qt6 kit path (…/6.x.y/mingw_64 or msvc2022_64)
   QT_INSTALL_DIR                Qt root (contains version dirs + Tools)
   ARACHNEL_QT_KIT               prefer kit name, e.g. mingw_64 or msvc2022_64
-  ARACHNEL_FAST_BUILD=0, ARACHNEL_LIBTORRENT_SHARED=0
-
-Shared libtorrent migration (static -> DLL) is automatic once; use --rebuild for a full clean.
+  ARACHNEL_FAST_BUILD=0
 "@
             exit 0
         }

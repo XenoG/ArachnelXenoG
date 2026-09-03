@@ -12,6 +12,7 @@ libs/
 
 # Local IDE
 .vscode/
+.idea/
 
 # run.ps1 --package (deploy staging + release zip)
 dist-win/
@@ -34,6 +35,12 @@ build_dlls.txt
 dist_dlls.txt
 qml-test-err.txt
 
+# Build logs
+build*.log
+build-output*.txt
+cmake-*.txt
+aqtinstall.log
+
 # Local plugin packages / catalog dumps (not part of the launcher repo)
 *.arach
 freetp/
@@ -54,3 +61,6 @@ System.Drawing.*
 
 __pycache__/
 *.py[cod]
+
+# SteamCMD (auto-downloaded by the app)
+steamcmd/

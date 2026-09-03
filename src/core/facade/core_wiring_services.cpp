@@ -138,9 +138,8 @@ void CoreController::initializeServices()
             &CoreController::catalogCountsChanged);
     connect(m_catalogController, &CatalogController::noticeRequested, this,
             [this](const QString& message) { showNotice(message); });
-    m_torrentSession = new TorrentSession(this);
     m_httpSession = new HttpDownloadSession(this);
-    m_jobOrchestrator = new JobOrchestrator(&m_settings, &m_jobStore, m_torrentSession,
+    m_jobOrchestrator = new JobOrchestrator(&m_settings, &m_jobStore,
                                             m_httpSession, &m_jobs, this);
     connect(m_jobOrchestrator, &JobOrchestrator::pluginDownloadResumeRequested, this,
             [this](const QString& jobId) { restartPluginOwnedDownload(jobId); });

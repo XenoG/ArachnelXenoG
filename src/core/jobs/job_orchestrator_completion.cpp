@@ -2,13 +2,21 @@
 
 #include "http_download_session.h"
 #include "job_status.h"
-#include "torrent_session.h"
 
 #include <QDateTime>
 
 namespace arachnel::core {
 namespace {
 QString isoNow() { return QDateTime::currentDateTimeUtc().toString(Qt::ISODate); }
+
+QString pickMagnet(const QStringList& uris)
+{
+    for (const QString& uri : uris) {
+        if (uri.startsWith(QStringLiteral("magnet:"), Qt::CaseInsensitive))
+            return uri;
+    }
+    return uris.value(0);
+}
 } // namespace
 
 void JobOrchestrator::completePluginDownload(const QString& jobId, const QString& installPath)
@@ -106,10 +114,6 @@ void JobOrchestrator::cancelJob(const QString& jobId)
     } else if (job.httpDownload) {
         if (isJobRunning(job.status) || job.status == QStringLiteral("starting"))
             m_http->cancel(jobId);
-    } else if (isJobRunning(job.status) || job.status == QStringLiteral("starting")) {
-        m_torrent->cancel(jobId, true);
-    } else {
-        m_torrent->removeResumeFile(jobId);
     }
 
     job.status = QStringLiteral("cancelled");
@@ -130,24 +134,11 @@ void JobOrchestrator::toggleJobPause(const QString& jobId)
     JobEntry job = jobFromModelRow(row);
     if (isJobTerminal(job.status) || job.httpDownload)
         return;
-    // Plugin-owned pause is driven by CoreController -> PluginHost; this path is torrents only.
+    // Plugin-owned pause is driven by CoreController -> PluginHost.
     if (job.pluginDownload)
         return;
 
-    if (job.status == QStringLiteral("paused")) {
-        m_torrent->setPaused(jobId, false);
-        job.status = QStringLiteral("starting");
-        job.detail = QStringLiteral("Resuming…");
-    } else if (isJobRunning(job.status)) {
-        m_torrent->setPaused(jobId, true);
-        job.status = QStringLiteral("paused");
-        job.detail = QStringLiteral("Paused");
-    } else {
-        return;
-    }
-
-    updateJobInModel(job);
-    persistJob(job);
+    return;
 }
 
 void JobOrchestrator::setPluginDownloadPaused(const QString& jobId, bool paused)
@@ -186,13 +177,7 @@ void JobOrchestrator::removeJob(const QString& jobId)
         } else if (job.httpDownload) {
             if (isJobRunning(job.status) || job.status == QStringLiteral("starting"))
                 m_http->cancel(jobId);
-        } else if (isJobRunning(job.status) || job.status == QStringLiteral("starting")) {
-            m_torrent->cancel(jobId, false);
-        } else {
-            m_torrent->removeResumeFile(jobId);
         }
-    } else if (!job.httpDownload && !job.pluginDownload) {
-        m_torrent->removeResumeFile(jobId);
     }
 
     m_jobs->removeJob(jobId);
@@ -217,12 +202,9 @@ void JobOrchestrator::retryJob(const QString& jobId)
     if (job.magnetUri.isEmpty())
         return;
 
-    if (!job.httpDownload)
-        m_torrent->removeResumeFile(jobId);
-
     job.status = QStringLiteral("starting");
     job.progress = 0;
-    job.detail = job.httpDownload ? QStringLiteral("Downloading…") : QStringLiteral("Connecting…");
+    job.detail = QStringLiteral("Downloading…");
     job.bytesDownloaded = 0;
     job.totalBytes = 0;
     job.artifactPath.clear();
@@ -232,8 +214,6 @@ void JobOrchestrator::retryJob(const QString& jobId)
     persistJob(job);
     if (job.httpDownload)
         startHttp(job);
-    else
-        startTorrent(job);
 }
 
 void JobOrchestrator::preparePluginJobResume(const QString& jobId)
@@ -315,43 +295,6 @@ void JobOrchestrator::setJobPhase(const QString& jobId, const QString& status,
         job.completedAt.clear();
     updateJobInModel(job);
     persistJob(job);
-}
-
-void JobOrchestrator::onTorrentFinished(const QString& jobId, const QString& savePath)
-{
-    const int row = m_jobs->indexOfJob(jobId);
-    if (row < 0)
-        return;
-
-    JobEntry job = jobFromModelRow(row);
-    const JobKind kind = m_jobKinds.value(jobId, JobKind::Download);
-
-    job.status = QStringLiteral("completed");
-    job.progress = 100;
-    job.detail = QStringLiteral("Download complete");
-    job.artifactPath = savePath;
-    job.completedAt = isoNow();
-    updateJobInModel(job);
-    persistJob(job);
-
-    emit downloadCompleted(jobId, job.entryId, job.sourceId, savePath, kind, job.libraryId);
-    m_jobKinds.remove(jobId);
-}
-
-void JobOrchestrator::onTorrentFailed(const QString& jobId, const QString& error)
-{
-    const int row = m_jobs->indexOfJob(jobId);
-    if (row >= 0) {
-        JobEntry job = jobFromModelRow(row);
-        job.status = QStringLiteral("failed");
-        job.detail = error;
-        job.completedAt = isoNow();
-        updateJobInModel(job);
-        persistJob(job);
-    }
-
-    emit downloadFailed(jobId, error);
-    m_jobKinds.remove(jobId);
 }
 
 void JobOrchestrator::onHttpProgress(const QString& jobId, int progress, qint64 downloaded,

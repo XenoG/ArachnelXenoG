@@ -88,10 +88,10 @@
     CoverImageCache* m_coverCache = nullptr;
     CatalogCoverCoordinator* m_catalogCovers = nullptr;
     CatalogController* m_catalogController = nullptr;
-    TorrentSession* m_torrentSession = nullptr;
     HttpDownloadSession* m_httpSession = nullptr;
     JobOrchestrator* m_jobOrchestrator = nullptr;
     PluginHost* m_pluginHost = nullptr;
+    SteamSourcePlugin m_bundledSteamPlugin;
     InstallAnalyzer* m_installAnalyzer = nullptr;
     InstallKindProbeService* m_installKindProbe = nullptr;
     InstallSessionService* m_installSessionService = nullptr;

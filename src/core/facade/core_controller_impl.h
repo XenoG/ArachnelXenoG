@@ -27,13 +27,13 @@
 #include "plugin_host.h"
 #include "plugin_catalog_service.h"
 #include "plugin_interface.h"
+#include "steam_source_plugin.h"
 #include "process_launcher.h"
 #include "process_tracker.h"
 #include "runtime_dependency_service.h"
 #include "proton_manager.h"
 #include "windows_runner.h"
 #include "storage_library_model.h"
-#include "torrent_session.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDesktopServices>

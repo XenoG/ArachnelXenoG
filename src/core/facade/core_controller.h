@@ -8,6 +8,7 @@
 #include "notification_model.h"
 #include "settings_store.h"
 #include "source_plugin_model.h"
+#include "steam_source_plugin.h"
 #include "app_updater.h"
 #include "plugin_catalog_service.h"
 
@@ -49,7 +50,6 @@ class LaunchController;
 class PluginHost;
 class ProtonManager;
 class RuntimeDependencyService;
-class TorrentSession;
 
 /** QML singleton façade (`Arachnel.Core`). Bodies live in domain TUs. */
 class CoreController : public QObject

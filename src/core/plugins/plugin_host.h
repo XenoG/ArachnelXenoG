@@ -1,6 +1,7 @@
 #pragma once
 
 #include "plugin_interface.h"
+#include "plugin_api.h"
 #include "source_plugin_model.h"
 
 #include <QObject>
@@ -80,6 +81,14 @@ public:
 
     bool pluginOwnsDownload(const QString& pluginId) const;
     int pluginApiVersion(const QString& pluginId) const;
+
+    /**
+     * Register an in-process (bundled) plugin instance.
+     * The instance is NOT owned by PluginHost — caller must keep it alive.
+     * A bundled plugin can be overridden by an external DLL plugin with the same id
+     * if a newer version is found on disk during scan().
+     */
+    void registerBundledPlugin(ISourcePlugin* instance, int apiVersion = ARACHNEL_PLUGIN_API_VERSION);
 
 signals:
     void pluginsChanged();

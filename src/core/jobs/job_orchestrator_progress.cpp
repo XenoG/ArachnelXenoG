@@ -149,95 +149,9 @@ QString JobOrchestrator::formatEta(qint64 remainingBytes, int bytesPerSec) const
     return QStringLiteral("%1 h").arg(seconds / 3600);
 }
 
-QString JobOrchestrator::buildDetail(qint64 downloaded, qint64 total, int downloadRate,
-                                     int numPeers, const QString& state) const
-{
-    if (state == QStringLiteral("metadata") || state == QStringLiteral("starting")
-        || state == QStringLiteral("queued")) {
-        return QStringLiteral("0% · Fetching metadata…");
-    }
-    if (state == QStringLiteral("checking")) {
-        if (total > 0)
-            return QStringLiteral("%1 / %2 · Checking…")
-                .arg(formatBytes(downloaded), formatBytes(total));
-        return QStringLiteral("Checking…");
-    }
-
-    const qint64 remaining = qMax<qint64>(0, total - downloaded);
-    const QString eta = formatEta(remaining, downloadRate);
-    if (total <= 0) {
-        if (downloaded > 0)
-            return QStringLiteral("%1 · %2 · %3 peers")
-                .arg(formatBytes(downloaded), formatSpeed(downloadRate),
-                     QString::number(numPeers));
-        return QStringLiteral("Downloading…");
-    }
-    return QStringLiteral("%1 / %2 · %3 · %4 peers · ETA %5")
-        .arg(formatBytes(downloaded), formatBytes(total), formatSpeed(downloadRate),
-             QString::number(numPeers), eta);
-}
-
 QString JobOrchestrator::buildHttpDetail(qint64 downloaded, qint64 total) const
 {
     return buildTransferDetail(downloaded, total, 0);
-}
-
-QString JobOrchestrator::buildTransferDetail(qint64 downloaded, qint64 total, int downloadRate) const
-{
-    const qint64 remaining = total > 0 ? qMax<qint64>(0, total - downloaded) : 0;
-    const bool showSpeed = downloadRate >= 8 * 1024;
-    if (total > 0) {
-        if (showSpeed) {
-            return QStringLiteral("%1 / %2 · %3 · ETA %4")
-                .arg(formatBytes(downloaded), formatBytes(total), formatSpeed(downloadRate),
-                     formatEta(remaining, downloadRate));
-        }
-        return QStringLiteral("%1 / %2").arg(formatBytes(downloaded), formatBytes(total));
-    }
-    if (downloaded > 0) {
-        if (showSpeed)
-            return QStringLiteral("%1 · %2").arg(formatBytes(downloaded), formatSpeed(downloadRate));
-        return formatBytes(downloaded);
-    }
-    return QStringLiteral("Downloading…");
-}
-
-void JobOrchestrator::onTorrentProgress(const QString& jobId, int progress, qint64 downloaded,
-                                        qint64 total, int downloadRate, int numPeers,
-                                        const QString& state)
-{
-    const int row = m_jobs->indexOfJob(jobId);
-    if (row < 0)
-        return;
-
-    JobEntry job = jobFromModelRow(row);
-    QString uiState = state;
-    if (uiState == QStringLiteral("queued") && total <= 0)
-        uiState = QStringLiteral("metadata");
-
-    const bool waitingMeta = uiState == QStringLiteral("metadata")
-                             || uiState == QStringLiteral("starting");
-    if (waitingMeta) {
-        job.progress = 0;
-        job.bytesDownloaded = downloaded > 0 ? downloaded : 0;
-        if (total > 0)
-            job.totalBytes = total;
-    } else {
-        job.progress = progress;
-        job.bytesDownloaded = downloaded;
-        job.totalBytes = total;
-    }
-
-    if (job.status == QStringLiteral("paused")) {
-        job.detail = buildDetail(downloaded, total, 0, numPeers, QStringLiteral("paused"));
-    } else {
-        job.status = uiState;
-        job.detail =
-            buildDetail(job.bytesDownloaded, job.totalBytes, downloadRate, numPeers, uiState);
-    }
-
-    updateJobInModel(job);
-    persistJob(job);
 }
 
 } // namespace arachnel::core

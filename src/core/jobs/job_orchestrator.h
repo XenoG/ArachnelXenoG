@@ -15,14 +15,13 @@
 namespace arachnel::core {
 
 class HttpDownloadSession;
-class TorrentSession;
 
 class JobOrchestrator : public QObject
 {
     Q_OBJECT
 
 public:
-    JobOrchestrator(SettingsStore* settings, JobStore* jobStore, TorrentSession* torrent,
+    JobOrchestrator(SettingsStore* settings, JobStore* jobStore,
                     HttpDownloadSession* http, JobModel* jobs, QObject* parent = nullptr);
 
     void restoreJobs();
@@ -56,13 +55,11 @@ signals:
     void pluginDownloadResumeRequested(const QString& jobId);
 
 private:
-    QString pickMagnet(const QStringList& uris) const;
     QString createJob(const QString& title, JobKind kind, const QString& entryId,
                       const QString& sourceId, const QString& downloadUri, const QString& saveSubdir,
                       const QString& coverUrl, const QString& libraryId,
                       const QString& parentEntryId = {}, bool httpDownload = false,
                       const QString& referer = {});
-    void startTorrent(const JobEntry& job);
     void startHttp(const JobEntry& job);
     void persistJob(const JobEntry& job);
     JobEntry jobFromModelRow(int row) const;
@@ -73,15 +70,9 @@ private:
     QString formatBytes(qint64 bytes) const;
     QString formatSpeed(int bytesPerSec) const;
     QString formatEta(qint64 remainingBytes, int bytesPerSec) const;
-    QString buildDetail(qint64 downloaded, qint64 total, int downloadRate, int numPeers,
-                        const QString& state) const;
     QString buildHttpDetail(qint64 downloaded, qint64 total) const;
     QString buildTransferDetail(qint64 downloaded, qint64 total, int downloadRate) const;
 
-    void onTorrentProgress(const QString& jobId, int progress, qint64 downloaded, qint64 total,
-                           int downloadRate, int numPeers, const QString& state);
-    void onTorrentFinished(const QString& jobId, const QString& savePath);
-    void onTorrentFailed(const QString& jobId, const QString& error);
     void onHttpProgress(const QString& jobId, int progress, qint64 downloaded, qint64 total);
     void onHttpFinished(const QString& jobId, const QString& filePath);
     void onHttpFailed(const QString& jobId, const QString& error);
@@ -94,7 +85,6 @@ private:
 
     SettingsStore* m_settings = nullptr;
     JobStore* m_jobStore = nullptr;
-    TorrentSession* m_torrent = nullptr;
     HttpDownloadSession* m_http = nullptr;
     JobModel* m_jobs = nullptr;
     QHash<QString, JobKind> m_jobKinds;

@@ -126,6 +126,38 @@ void PluginHost::unloadPlugin(const QString& pluginId)
     delete loaded;
 }
 
+void PluginHost::registerBundledPlugin(ISourcePlugin* instance, int apiVersion)
+{
+    if (!instance)
+        return;
+    const QString id = instance->id();
+    if (id.isEmpty())
+        return;
+    // If an external (DLL) plugin with the same id is already loaded, skip registration.
+    // This allows external plugin updates to override the bundled version.
+    if (m_plugins.contains(id))
+        return;
+
+    auto* loaded = new LoadedPlugin();
+    loaded->rootPath = QStringLiteral("bundled");
+    loaded->instance = instance;
+    loaded->destroyFn = nullptr; // Not owned by PluginHost
+    loaded->catalogJsonFn = nullptr;
+    loaded->catalogJsonFreeFn = nullptr;
+    loaded->apiVersion = apiVersion;
+
+    SourcePluginInfo info;
+    info.id = instance->id();
+    info.name = instance->name();
+    info.description = instance->description();
+    info.pluginVersion = instance->version();
+    info.capabilities = instance->capabilities();
+    info.isPlugin = true;
+    loaded->info = info;
+
+    m_plugins.insert(id, loaded);
+}
+
 void PluginHost::setBeforeUnloadHook(std::function<void()> hook)
 {
     m_beforeUnload = std::move(hook);

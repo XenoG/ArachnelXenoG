@@ -106,4 +106,5 @@ cmake --build . -j$(nproc)
 - [Releases](https://github.com/BadKiko/Arachnel/releases) — download builds
 - [Issues](https://github.com/BadKiko/Arachnel/issues) — bugs and feature requests
 - [TUTORIAL.md](TUTORIAL.md) — detailed local build guide for beginners
+- [FAQ.md](FAQ.md) — common build errors and how to fix them
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — codebase overview

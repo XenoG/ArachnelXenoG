@@ -66,11 +66,11 @@ jobs:
           "CMAKE_C_COMPILER_LAUNCHER=$path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "CMAKE_CXX_COMPILER_LAUNCHER=$path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Cache FetchContent (Boost / libtorrent / QmlMaterial)
+      - name: Cache FetchContent (QmlMaterial)
         uses: actions/cache@v4
         with:
           path: .cache/fetchcontent
-          key: fetchcontent-win-${{ hashFiles('cmake/ArachnelLibtorrent.cmake', 'CMakeLists.txt', 'cmake/patch-qml-material-win.cmake') }}
+          key: fetchcontent-win-${{ hashFiles('CMakeLists.txt', 'cmake/patch-qml-material-win.cmake') }}
           restore-keys: |
             fetchcontent-win-
 
@@ -189,11 +189,11 @@ jobs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=$path" >> "$GITHUB_ENV"
           echo "CMAKE_*_COMPILER_LAUNCHER=$path"
 
-      - name: Cache FetchContent (Boost / libtorrent / QmlMaterial)
+      - name: Cache FetchContent (QmlMaterial)
         uses: actions/cache@v4
         with:
           path: .cache/fetchcontent
-          key: fetchcontent-linux-${{ hashFiles('cmake/ArachnelLibtorrent.cmake', 'CMakeLists.txt', 'cmake/patch-qml-material-win.cmake') }}
+          key: fetchcontent-linux-${{ hashFiles('CMakeLists.txt', 'cmake/patch-qml-material-win.cmake') }}
           restore-keys: |
             fetchcontent-linux-
 
